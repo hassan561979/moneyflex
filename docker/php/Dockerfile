@@ -60,6 +60,10 @@ ENV APP_ENV=local
 
 COPY docker/php/php.dev.ini /usr/local/etc/php/conf.d/99-dev.ini
 
+# pcov rather than Xdebug: it measures coverage at a fraction of the cost and
+# is disabled unless the test run asks for it.
+RUN install-php-extensions pcov
+
 USER www
 
 ###############################################################################

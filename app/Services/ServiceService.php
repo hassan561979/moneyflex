@@ -79,16 +79,6 @@ class ServiceService
     }
 
     /**
-     * Services belonging to one customer.
-     *
-     * @return LengthAwarePaginator<int, Service>
-     */
-    public function paginateForCustomer(Customer $customer, QueryOptions $options): LengthAwarePaginator
-    {
-        return $this->paginate($options, $customer->id);
-    }
-
-    /**
      * @param  array<string, mixed>  $attributes
      */
     public function createForCustomer(Customer $customer, array $attributes): Service

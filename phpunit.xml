@@ -16,19 +16,46 @@
         <include>
             <directory>app</directory>
         </include>
+        <exclude>
+            <!-- Declarative only: the OpenAPI document is checked by
+                 scripts/validate-openapi.php instead. -->
+            <directory>app/OpenApi</directory>
+        </exclude>
     </source>
     <php>
         <env name="APP_ENV" value="testing"/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>
-        <env name="CACHE_STORE" value="array"/>
-        <env name="DB_CONNECTION" value="sqlite"/>
-        <env name="DB_DATABASE" value=":memory:"/>
+
+        <!-- The suite runs against the same engines as production rather than
+             against SQLite: enum columns, decimal precision and the foreign
+             key cascade all behave differently elsewhere. The schema is
+             created by docker/mysql/init on the container's first boot. -->
+        <env name="DB_CONNECTION" value="mysql"/>
+        <env name="DB_HOST" value="mysql"/>
+        <env name="DB_PORT" value="3306"/>
+        <env name="DB_DATABASE" value="moneyflex_testing"/>
+        <env name="DB_USERNAME" value="root"/>
+        <env name="DB_PASSWORD" value="root_123"/>
         <env name="DB_URL" value=""/>
+
+        <!-- Redis, on a database of its own so a test run never disturbs the
+             development cache. Tagged cache behaviour is part of what is
+             under test, so the array store would not be a fair substitute. -->
+        <env name="CACHE_STORE" value="redis"/>
+        <env name="CACHE_PREFIX" value="moneyflex_testing"/>
+        <env name="REDIS_HOST" value="redis"/>
+        <env name="REDIS_CACHE_DB" value="2"/>
+
+        <env name="JWT_SECRET" value="base64:dGVzdGluZy1qd3Qtc2VjcmV0LWZvci10aGUtc3VpdGU="/>
+        <env name="JWT_TTL" value="60"/>
+        <env name="JWT_REFRESH_TTL" value="20160"/>
+
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>
+        <env name="L5_SWAGGER_GENERATE_ALWAYS" value="false"/>
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>

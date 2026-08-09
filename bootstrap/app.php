@@ -7,6 +7,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Middleware\SubstituteBindings;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -23,6 +24,18 @@ return Application::configure(basePath: dirname(__DIR__))
             // The same, plus bearer tokens for clients that prefer them.
             'auth.api' => AuthenticateWithBasicOrJwt::class,
         ]);
+
+        // Authenticate before route model binding resolves anything.
+        // Otherwise a missing record answers 404 while an existing one answers
+        // 401, which lets an anonymous caller discover which ids exist.
+        $middleware->prependToPriorityList(
+            before: SubstituteBindings::class,
+            prepend: AuthenticateWithBasicOrJwt::class,
+        );
+        $middleware->prependToPriorityList(
+            before: SubstituteBindings::class,
+            prepend: AuthenticateWithBasicAuth::class,
+        );
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

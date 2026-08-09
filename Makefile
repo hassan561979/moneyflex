@@ -70,6 +70,10 @@ seed: ## Seed the database
 test: ## Run the test suite
 	$(EXEC) php artisan test
 
+.PHONY: coverage
+coverage: ## Run the test suite and report coverage, failing under the floor
+	$(EXEC) php artisan test --coverage --min=90
+
 .PHONY: lint
 lint: ## Check code style
 	$(EXEC) ./vendor/bin/pint --test

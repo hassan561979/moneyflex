@@ -33,11 +33,6 @@ class CustomerService
             ->withQueryString();
     }
 
-    public function find(int $id): ?Customer
-    {
-        return Customer::query()->withCount('services')->find($id);
-    }
-
     /**
      * @param  array<string, mixed>  $attributes
      */
