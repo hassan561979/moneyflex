@@ -1,6 +1,8 @@
 <?php
 
 use App\Exceptions\ApiExceptionRenderer;
+use App\Http\Middleware\AuthenticateWithBasicAuth;
+use App\Http\Middleware\AuthenticateWithBasicOrJwt;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -15,7 +17,12 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        $middleware->alias([
+            // The scheme the brief requires, on its own.
+            'auth.basic.api' => AuthenticateWithBasicAuth::class,
+            // The same, plus bearer tokens for clients that prefer them.
+            'auth.api' => AuthenticateWithBasicOrJwt::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

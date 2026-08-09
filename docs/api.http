@@ -1,13 +1,65 @@
 ### MoneyFlex API
 ### Runnable from VS Code (REST Client) or JetBrains HTTP Client.
-### Authentication arrives in phase 4; these requests are open for now.
+###
+### Every endpoint below the auth section requires credentials. Two schemes
+### are accepted and either is enough:
+###   Basic   Authorization: Basic base64(email:password)   <- required scheme
+###   Bearer  Authorization: Bearer <jwt>                   <- obtained by login
+###
+### The seeded account is api@moneyflex.test / password123.
 
 @base = http://localhost:8080/api/v1
+@email = api@moneyflex.test
+@password = password123
+@basic = {{email}}:{{password}}
 @customerId = 1
 @serviceId = 1
 
-### Health
+### Health (open, no credentials)
 GET {{base}}/health
+Accept: application/json
+
+###############################################################################
+# Authentication
+###############################################################################
+
+### Log in and obtain a bearer token (open)
+# @name login
+POST {{base}}/auth/login
+Content-Type: application/json
+Accept: application/json
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+### Capture the token from the response above
+@token = {{login.response.body.access_token}}
+
+### Who am I (bearer)
+GET {{base}}/auth/me
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Who am I (basic; the same endpoint accepts either scheme)
+GET {{base}}/auth/me
+Authorization: Basic {{basic}}
+Accept: application/json
+
+### Exchange the token for a fresh one; the old one stops working
+POST {{base}}/auth/refresh
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Revoke the token
+POST {{base}}/auth/logout
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Unauthenticated request (expect 401 with a WWW-Authenticate header)
+# Deliberately sends no Authorization header.
+GET {{base}}/customers
 Accept: application/json
 
 ###############################################################################
@@ -16,16 +68,19 @@ Accept: application/json
 
 ### List customers
 GET {{base}}/customers
+Authorization: Basic {{basic}}
 Accept: application/json
 
 ### List customers, filtered, sorted and paginated
 # sort accepts: id, name, email, status, created_at, updated_at
 # prefix with "-" for descending
 GET {{base}}/customers?search=acme&status=active&sort=-created_at&per_page=10&page=1
+Authorization: Basic {{basic}}
 Accept: application/json
 
 ### Create a customer
 POST {{base}}/customers
+Authorization: Basic {{basic}}
 Content-Type: application/json
 Accept: application/json
 
@@ -39,10 +94,12 @@ Accept: application/json
 
 ### View a customer
 GET {{base}}/customers/{{customerId}}
+Authorization: Basic {{basic}}
 Accept: application/json
 
 ### Update a customer (partial update; send only what changes)
 PATCH {{base}}/customers/{{customerId}}
+Authorization: Basic {{basic}}
 Content-Type: application/json
 Accept: application/json
 
@@ -52,6 +109,7 @@ Accept: application/json
 
 ### Delete a customer (soft delete; also hides their services)
 DELETE {{base}}/customers/{{customerId}}
+Authorization: Basic {{basic}}
 Accept: application/json
 
 ###############################################################################
@@ -61,15 +119,18 @@ Accept: application/json
 ### List every service
 # sort accepts: id, name, price, status, starts_at, ends_at, created_at, updated_at
 GET {{base}}/services?status=active&sort=-price&per_page=10
+Authorization: Basic {{basic}}
 Accept: application/json
 
 ### List the services of one customer
 GET {{base}}/customers/{{customerId}}/services
+Authorization: Basic {{basic}}
 Accept: application/json
 
 ### Create a service for a customer
 # The owner comes from the URL; a customer_id in the body is ignored.
 POST {{base}}/customers/{{customerId}}/services
+Authorization: Basic {{basic}}
 Content-Type: application/json
 Accept: application/json
 
@@ -84,10 +145,12 @@ Accept: application/json
 
 ### View a service
 GET {{base}}/services/{{serviceId}}
+Authorization: Basic {{basic}}
 Accept: application/json
 
 ### Update a service
 PATCH {{base}}/services/{{serviceId}}
+Authorization: Basic {{basic}}
 Content-Type: application/json
 Accept: application/json
 
@@ -98,6 +161,7 @@ Accept: application/json
 
 ### Delete a service
 DELETE {{base}}/services/{{serviceId}}
+Authorization: Basic {{basic}}
 Accept: application/json
 
 ###############################################################################
@@ -106,6 +170,7 @@ Accept: application/json
 
 ### 422 validation error
 POST {{base}}/customers
+Authorization: Basic {{basic}}
 Content-Type: application/json
 Accept: application/json
 
@@ -113,4 +178,5 @@ Accept: application/json
 
 ### 404 not found
 GET {{base}}/customers/999999
+Authorization: Basic {{basic}}
 Accept: application/json
