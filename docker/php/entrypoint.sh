@@ -32,6 +32,13 @@ if [ "$1" = "php-fpm" ]; then
         php artisan migrate --force --no-interaction
     fi
 
+    # Without this a fresh stack comes up with no accounts, and the credentials
+    # quoted in the README would be rejected. Seeding backs off as soon as the
+    # database holds anything, so a restart never duplicates data.
+    if [ "${AUTO_SEED:-false}" = "true" ]; then
+        php artisan db:seed-if-empty --no-interaction
+    fi
+
     # Fail loudly and early rather than serving a 500 on the first request.
     php artisan about --only=environment >/dev/null
 fi

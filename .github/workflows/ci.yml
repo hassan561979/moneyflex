@@ -1,0 +1,141 @@
+name: CI
+
+on:
+    push:
+        branches: [main]
+    pull_request:
+    workflow_dispatch:
+
+# A newer push makes an in-flight run pointless.
+concurrency:
+    group: ${{ github.workflow }}-${{ github.ref }}
+    cancel-in-progress: true
+
+permissions:
+    contents: read
+
+env:
+    # Values used only by the throwaway stack in CI.
+    APP_HOST_PORT: 8080
+
+jobs:
+    quality:
+        name: Quality
+        runs-on: ubuntu-latest
+        timeout-minutes: 20
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Set up Buildx
+              uses: docker/setup-buildx-action@v3
+
+            # The stack is brought up exactly as a reviewer would bring it up:
+            # a fresh checkout with no .env and empty volumes. That makes the
+            # first run experience part of the build, so a broken cold start
+            # fails here rather than during a demonstration.
+            - name: Start the stack from a clean checkout
+              run: |
+                  docker compose up -d --build
+                  echo "UID=$(id -u)" >> "$GITHUB_ENV"
+
+            - name: Wait for the API to answer
+              run: |
+                  for attempt in $(seq 1 60); do
+                      if curl -fsS http://localhost:8080/api/v1/health > /dev/null; then
+                          echo "The API answered after ${attempt} attempts."
+                          curl -s http://localhost:8080/api/v1/health
+                          exit 0
+                      fi
+                      sleep 2
+                  done
+                  echo "The API never became healthy."
+                  docker compose ps
+                  docker compose logs --tail=80
+                  exit 1
+
+            - name: Validate the composer manifest
+              run: docker compose exec -T app composer validate --strict
+
+            - name: Audit dependencies for known advisories
+              run: docker compose exec -T app composer audit --no-dev
+
+            - name: Check code style
+              run: docker compose exec -T app ./vendor/bin/pint --test
+
+            - name: Analyse statically
+              run: docker compose exec -T app ./vendor/bin/phpstan analyse --memory-limit=512M --no-progress
+
+            - name: Run the test suite
+              run: docker compose exec -T app php artisan test --coverage --min=90
+
+            - name: Regenerate the OpenAPI specification
+              run: docker compose exec -T app php artisan l5-swagger:generate
+
+            - name: Check the specification is consistent
+              run: docker compose exec -T app php scripts/validate-openapi.php
+
+            # A specification committed from an older version of the code is
+            # worse than none, because it is trusted.
+            - name: Check the committed specification is current
+              run: |
+                  if ! git diff --quiet -- storage/api-docs/api-docs.json; then
+                      echo "The committed specification is out of date. Run: make swagger"
+                      git diff --stat -- storage/api-docs/api-docs.json
+                      exit 1
+                  fi
+
+            - name: Show logs on failure
+              if: failure()
+              run: docker compose logs --tail=200
+
+            - name: Tear down
+              if: always()
+              run: docker compose down -v
+
+    image:
+        name: Production image
+        runs-on: ubuntu-latest
+        timeout-minutes: 20
+        needs: quality
+        permissions:
+            contents: read
+            # Required to push to the GitHub container registry.
+            packages: write
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Set up Buildx
+              uses: docker/setup-buildx-action@v3
+
+            # Only pushes from the default branch are published; a pull request
+            # is built to prove it compiles and then discarded.
+            - name: Authenticate to the container registry
+              if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+              uses: docker/login-action@v3
+              with:
+                  registry: ghcr.io
+                  username: ${{ github.actor }}
+                  password: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Derive image metadata
+              id: meta
+              uses: docker/metadata-action@v5
+              with:
+                  images: ghcr.io/${{ github.repository }}
+                  tags: |
+                      type=raw,value=latest,enable={{is_default_branch}}
+                      type=sha,format=long
+
+            - name: Build and publish
+              uses: docker/build-push-action@v6
+              with:
+                  context: .
+                  file: docker/php/Dockerfile
+                  target: production
+                  push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+                  tags: ${{ steps.meta.outputs.tags }}
+                  labels: ${{ steps.meta.outputs.labels }}
+                  cache-from: type=gha
+                  cache-to: type=gha,mode=max

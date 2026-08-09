@@ -12,13 +12,7 @@ help: ## Show the available targets
 		| awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
 
 .PHONY: init
-init: ## First-time setup: .env, build, start, migrate, seed
-	@test -f .env || cp .env.example .env
-	$(COMPOSE) build
-	$(COMPOSE) up -d
-	@$(MAKE) --no-print-directory wait
-	@# The entrypoint has already created .env, generated the key and migrated.
-	@$(MAKE) --no-print-directory seed
+init: up ## First-time setup (alias for up; the container does the rest)
 	@echo "\nAPI ready on http://localhost:$${APP_HOST_PORT:-8080}/api/v1/health"
 
 .PHONY: up
@@ -77,6 +71,13 @@ coverage: ## Run the test suite and report coverage, failing under the floor
 .PHONY: lint
 lint: ## Check code style
 	$(EXEC) ./vendor/bin/pint --test
+
+.PHONY: analyse
+analyse: ## Run static analysis
+	$(EXEC) ./vendor/bin/phpstan analyse --memory-limit=512M --no-progress
+
+.PHONY: ci
+ci: lint analyse coverage swagger ## Run everything the pipeline runs
 
 .PHONY: fix
 fix: ## Apply code style fixes

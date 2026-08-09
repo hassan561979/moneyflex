@@ -16,10 +16,10 @@ class UserSeeder extends Seeder
         // and the Swagger UI. Credentials are configurable so a deployment is
         // never obliged to keep the demo defaults.
         User::query()->updateOrCreate(
-            ['email' => (string) env('API_USER_EMAIL', 'api@moneyflex.test')],
+            ['email' => (string) config('moneyflex.api_user.email')],
             [
                 'name' => 'MoneyFlex API',
-                'password' => Hash::make((string) env('API_USER_PASSWORD', 'password123')),
+                'password' => Hash::make((string) config('moneyflex.api_user.password')),
                 'email_verified_at' => now(),
             ],
         );

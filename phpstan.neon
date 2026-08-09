@@ -1,0 +1,18 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    level: 8
+
+    # Tests are excluded: PHPStan cannot follow how Pest rebinds $this inside a
+    # test closure, so every $this->get(...) and $this->user in the suite is
+    # reported as undefined. The suite is verified by running it, not by static
+    # analysis of code the analyser misreads.
+    paths:
+        - app
+        - database
+        - routes
+
+    # The generated specification is data, not logic.
+    excludePaths:
+        - app/OpenApi/ApiDefinition.php

@@ -16,6 +16,9 @@ final readonly class QueryOptions
 
     private const MAX_PER_PAGE = 100;
 
+    /**
+     * @param  'asc'|'desc'  $sortDirection
+     */
     public function __construct(
         public ?string $search = null,
         public ?string $status = null,

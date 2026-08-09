@@ -83,7 +83,9 @@ class TokenService
             return null;
         }
 
-        return User::query()->find($claims['sub']);
+        // whereKey rather than find: given an array, find would return a
+        // collection, which is not what a single subject claim ever means.
+        return User::query()->whereKey($claims['sub'])->first();
     }
 
     /**
@@ -124,7 +126,7 @@ class TokenService
             return null;
         }
 
-        $user = User::query()->find($claims['sub']);
+        $user = User::query()->whereKey($claims['sub'])->first();
 
         if ($user === null) {
             return null;
