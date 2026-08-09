@@ -17,8 +17,7 @@ init: ## First-time setup: .env, build, start, migrate, seed
 	$(COMPOSE) build
 	$(COMPOSE) up -d
 	@$(MAKE) --no-print-directory wait
-	$(EXEC) php artisan key:generate --force
-	@$(MAKE) --no-print-directory migrate
+	@# The entrypoint has already created .env, generated the key and migrated.
 	@$(MAKE) --no-print-directory seed
 	@echo "\nAPI ready on http://localhost:$${APP_HOST_PORT:-8080}/api/v1/health"
 

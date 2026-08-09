@@ -4,7 +4,7 @@ set -e
 # Only bootstrap the application when the container actually runs the app
 # (php-fpm). One-off commands such as `make test` skip straight to exec.
 if [ "$1" = "php-fpm" ]; then
-    # vendor/ lives in a named volume in development, so it starts out empty.
+    # vendor/ is absent in a fresh clone.
     if [ ! -f vendor/autoload.php ]; then
         echo "[entrypoint] installing composer dependencies"
         composer install --no-interaction --prefer-dist
@@ -15,12 +15,25 @@ if [ "$1" = "php-fpm" ]; then
         cp .env.example .env
     fi
 
-    if [ -f .env ] && ! grep -q '^APP_KEY=base64:' .env; then
+    mkdir -p storage/framework/cache storage/framework/sessions storage/framework/views storage/logs bootstrap/cache
+
+    # A stale cached config would pin the old, keyless configuration.
+    php artisan config:clear >/dev/null 2>&1 || true
+
+    # Generate a key whenever one is missing, so the container can never come
+    # up in a state that throws MissingAppKeyException on the first request.
+    if ! grep -qE '^APP_KEY=base64:.+' .env; then
         echo "[entrypoint] generating application key"
         php artisan key:generate --force --no-interaction
     fi
 
-    mkdir -p storage/framework/cache storage/framework/sessions storage/framework/views storage/logs bootstrap/cache
+    if [ "${AUTO_MIGRATE:-false}" = "true" ]; then
+        echo "[entrypoint] running migrations"
+        php artisan migrate --force --no-interaction
+    fi
+
+    # Fail loudly and early rather than serving a 500 on the first request.
+    php artisan about --only=environment >/dev/null
 fi
 
 exec "$@"

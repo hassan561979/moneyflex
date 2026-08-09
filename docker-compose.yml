@@ -15,8 +15,13 @@ services:
             # composer install on first boot, and the pinned platform in
             # composer.json keeps that resolution identical to the image.
             - .:/var/www/html
-        env_file:
-            - .env
+        # Deliberately no env_file: compose would snapshot .env at container
+        # creation, and a real environment variable always beats the .env file
+        # in Laravel. An APP_KEY that was still empty at boot would then shadow
+        # the generated one until the container was recreated. Laravel reads
+        # the bind-mounted .env itself, so it always sees current values.
+        environment:
+            AUTO_MIGRATE: "${AUTO_MIGRATE:-true}"
         depends_on:
             mysql:
                 condition: service_healthy
