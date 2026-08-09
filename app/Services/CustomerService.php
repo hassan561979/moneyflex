@@ -15,6 +15,8 @@ use Illuminate\Support\Facades\DB;
  */
 class CustomerService
 {
+    public function __construct(private readonly ServiceService $services) {}
+
     /**
      * @return LengthAwarePaginator<int, Customer>
      */
@@ -65,5 +67,10 @@ class CustomerService
         DB::transaction(static function () use ($customer): void {
             $customer->delete();
         });
+
+        // The cascade hides this customer's services, so any cached listing
+        // that still contains them is now wrong. The cascade is a mass update
+        // and fires no model events, which is why this is explicit.
+        $this->services->forget($customer->id);
     }
 }

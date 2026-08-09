@@ -11,7 +11,6 @@ use App\Http\Resources\ServiceResource;
 use App\Models\Customer;
 use App\Services\ServiceService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
 
 /**
@@ -23,11 +22,13 @@ class CustomerServiceController extends Controller
 
     /**
      * GET /api/v1/customers/{customer}/services
+     *
+     * Served from the cache when a matching listing is already there.
      */
-    public function index(IndexServiceRequest $request, Customer $customer): AnonymousResourceCollection
+    public function index(IndexServiceRequest $request, Customer $customer): JsonResponse
     {
-        return ServiceResource::collection(
-            $this->services->paginateForCustomer($customer, $request->options()),
+        return response()->json(
+            $this->services->cachedIndex($request->options(), $customer->id),
         );
     }
 

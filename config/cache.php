@@ -19,6 +19,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Listing lifetime
+    |--------------------------------------------------------------------------
+    |
+    | How long, in seconds, a cached service listing is served before it is
+    | rebuilt. Writes invalidate the cache immediately, so this is only a
+    | backstop against anything that changes the data behind the API's back.
+    |
+    */
+
+    'ttl' => (int) env('CACHE_TTL', 300),
+
+    /*
+    |--------------------------------------------------------------------------
     | Cache Stores
     |--------------------------------------------------------------------------
     |
