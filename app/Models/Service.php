@@ -42,6 +42,17 @@ class Service extends Model
     ];
 
     /**
+     * Mirrors the column defaults so a freshly created model already carries
+     * them, instead of holding null until it is reloaded.
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'status' => ServiceStatus::Active->value,
+        'price' => 0,
+    ];
+
+    /**
      * @return array<string, string>
      */
     protected function casts(): array

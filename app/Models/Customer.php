@@ -38,6 +38,16 @@ class Customer extends Model
     ];
 
     /**
+     * Mirrors the column default so a freshly created model already carries
+     * the status, instead of holding null until it is reloaded.
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'status' => CustomerStatus::Active->value,
+    ];
+
+    /**
      * @return array<string, string>
      */
     protected function casts(): array
