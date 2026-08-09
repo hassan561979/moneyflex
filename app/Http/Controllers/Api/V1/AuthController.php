@@ -14,6 +14,7 @@ use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
+use OpenApi\Attributes as OA;
 
 /**
  * Token endpoints. Basic Authentication alone satisfies the brief; these exist
@@ -27,6 +28,46 @@ class AuthController extends Controller
     /**
      * POST /api/v1/auth/login
      */
+    #[OA\Post(
+        path: '/auth/login',
+        operationId: 'login',
+        summary: 'Exchange credentials for a bearer token',
+        description: 'Open endpoint. Rate limited to five attempts per minute per account and address.',
+        security: [],
+        tags: ['Authentication'],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['email', 'password'],
+                properties: [
+                    new OA\Property(property: 'email', type: 'string', format: 'email', example: 'api@moneyflex.test'),
+                    new OA\Property(property: 'password', type: 'string', format: 'password', example: 'password123'),
+                ],
+            ),
+        ),
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'A signed token.',
+                content: new OA\JsonContent(properties: [
+                    new OA\Property(property: 'access_token', type: 'string', example: 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...'),
+                    new OA\Property(property: 'token_type', type: 'string', example: 'Bearer'),
+                    new OA\Property(property: 'expires_in', type: 'integer', example: 3600, description: 'Seconds until the token expires.'),
+                ]),
+            ),
+            new OA\Response(
+                response: 401,
+                description: 'The credentials were not accepted. The response is identical whether or not the account exists.',
+                content: new OA\JsonContent(ref: '#/components/schemas/Error'),
+            ),
+            new OA\Response(
+                response: 429,
+                description: 'Too many attempts. A Retry-After header states when to try again.',
+                content: new OA\JsonContent(ref: '#/components/schemas/Error'),
+            ),
+            new OA\Response(response: 422, ref: '#/components/responses/ValidationFailed'),
+        ],
+    )]
     public function login(LoginRequest $request): JsonResponse
     {
         $key = 'login:'.Str::lower((string) $request->input('email')).'|'.$request->ip();
@@ -60,6 +101,28 @@ class AuthController extends Controller
     /**
      * GET /api/v1/auth/me
      */
+    #[OA\Get(
+        path: '/auth/me',
+        operationId: 'me',
+        summary: 'The authenticated account',
+        description: 'Accepts either scheme, so it doubles as a way to check that credentials work.',
+        security: [['basicAuth' => []], ['bearerAuth' => []]],
+        tags: ['Authentication'],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'The account behind the credentials.',
+                content: new OA\JsonContent(properties: [
+                    new OA\Property(property: 'data', properties: [
+                        new OA\Property(property: 'id', type: 'integer', example: 1),
+                        new OA\Property(property: 'name', type: 'string', example: 'MoneyFlex API'),
+                        new OA\Property(property: 'email', type: 'string', example: 'api@moneyflex.test'),
+                    ], type: 'object'),
+                ]),
+            ),
+            new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
+        ],
+    )]
     public function me(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -78,6 +141,27 @@ class AuthController extends Controller
      *
      * Exchanges a valid token for a fresh one and retires the old identifier.
      */
+    #[OA\Post(
+        path: '/auth/refresh',
+        operationId: 'refresh',
+        summary: 'Exchange a token for a fresh one',
+        description: 'The presented token is revoked in the same step, so it cannot be replayed. Refreshing is only possible within the refresh window measured from the original issue time.',
+        security: [['bearerAuth' => []]],
+        tags: ['Authentication'],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'A new token.',
+                content: new OA\JsonContent(properties: [
+                    new OA\Property(property: 'access_token', type: 'string'),
+                    new OA\Property(property: 'token_type', type: 'string', example: 'Bearer'),
+                    new OA\Property(property: 'expires_in', type: 'integer', example: 3600),
+                ]),
+            ),
+            new OA\Response(response: 400, description: 'No bearer token was presented.', content: new OA\JsonContent(ref: '#/components/schemas/Error')),
+            new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
+        ],
+    )]
     public function refresh(Request $request): JsonResponse
     {
         $token = $request->bearerToken();
@@ -104,6 +188,18 @@ class AuthController extends Controller
      *
      * Revokes the presented token until it would have expired on its own.
      */
+    #[OA\Post(
+        path: '/auth/logout',
+        operationId: 'logout',
+        summary: 'Revoke the presented token',
+        description: 'The token is held on a denylist until the moment it would have expired on its own.',
+        security: [['bearerAuth' => []]],
+        tags: ['Authentication'],
+        responses: [
+            new OA\Response(response: 204, description: 'Revoked. No content is returned.'),
+            new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
+        ],
+    )]
     public function logout(Request $request): Response
     {
         $token = $request->bearerToken();

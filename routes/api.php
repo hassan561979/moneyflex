@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\CustomerController;
 use App\Http\Controllers\Api\V1\CustomerServiceController;
+use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\ServiceController;
 use Illuminate\Support\Facades\Route;
 
@@ -23,11 +24,7 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('v1')->group(function (): void {
 
     // Open: container orchestration probes this without credentials.
-    Route::get('/health', fn () => response()->json([
-        'status' => 'ok',
-        'service' => config('app.name'),
-        'time' => now()->toIso8601String(),
-    ]))->name('health');
+    Route::get('/health', HealthController::class)->name('health');
 
     // Open: exchanging credentials for a token is how a client obtains one.
     Route::post('/auth/login', [AuthController::class, 'login'])->name('auth.login');

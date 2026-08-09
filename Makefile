@@ -79,5 +79,6 @@ fix: ## Apply code style fixes
 	$(EXEC) ./vendor/bin/pint
 
 .PHONY: swagger
-swagger: ## Regenerate the OpenAPI documentation
+swagger: ## Regenerate and check the OpenAPI documentation
 	$(EXEC) php artisan l5-swagger:generate
+	$(EXEC) php scripts/validate-openapi.php
