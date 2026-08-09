@@ -77,6 +77,9 @@ and the page size is capped at 100.
 [docs/api.http](docs/api.http) is a runnable collection covering every endpoint,
 for the VS Code REST Client or the JetBrains HTTP client.
 
+[docs/INTERVIEW.md](docs/INTERVIEW.md) explains every design decision in the
+project and the reasoning behind it.
+
 ---
 
 ## Authentication
@@ -164,7 +167,7 @@ make shell      # a shell inside the app container
 
 ### Tests
 
-137 tests, 98.5% coverage, run against the same MySQL and Redis the application
+141 tests, 98.5% coverage, run against the same MySQL and Redis the application
 uses rather than SQLite: enum columns, decimal precision, the foreign key
 cascade and tagged cache behaviour all differ elsewhere. The schema
 `moneyflex_testing` is created on the container's first boot.
@@ -216,7 +219,7 @@ classmap, opcache with timestamp validation off, and runs as a non-root user.
 | ORM | ✅ Eloquent |
 | SQL Server | ✅ MySQL 8.4 |
 | Swagger | ✅ at `/api/documentation` |
-| **Bonus** unit test coverage | ✅ 137 tests, 98.5% |
+| **Bonus** unit test coverage | ✅ 141 tests, 98.5% |
 | **Bonus** caching | ✅ Redis, invalidated on write |
 | **Bonus** JWT | ✅ alongside Basic |
 | **Bonus** dockerised | ✅ four-stage build, one command to run |

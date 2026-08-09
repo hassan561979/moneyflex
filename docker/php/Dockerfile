@@ -7,8 +7,7 @@
 FROM php:8.4-fpm-alpine AS base
 
 # install-php-extensions resolves each extension's build dependencies and
-# removes them afterwards. It also sources phpredis from its own repository,
-# which PECL no longer publishes.
+# removes them afterwards.
 COPY --from=mlocati/php-extension-installer:2 /usr/bin/install-php-extensions /usr/local/bin/
 
 RUN install-php-extensions \
@@ -16,8 +15,27 @@ RUN install-php-extensions \
         bcmath \
         intl \
         zip \
-        opcache \
-        redis
+        opcache
+
+# phpredis is built from its own source release rather than installed through
+# PECL, because pecl.php.net no longer serves it: an installer that falls back
+# to PECL fails with "No releases available for package pecl.php.net/redis".
+# Pinned to an exact tag so the build stays reproducible.
+ARG PHPREDIS_VERSION=6.3.0
+RUN set -eux; \
+    apk add --no-cache --virtual .phpredis-build-deps $PHPIZE_DEPS; \
+    wget -qO /tmp/phpredis.tar.gz "https://github.com/phpredis/phpredis/archive/refs/tags/${PHPREDIS_VERSION}.tar.gz"; \
+    tar xzf /tmp/phpredis.tar.gz -C /tmp; \
+    cd "/tmp/phpredis-${PHPREDIS_VERSION}"; \
+    phpize; \
+    ./configure; \
+    make -j"$(nproc)"; \
+    make install; \
+    docker-php-ext-enable redis; \
+    cd /; \
+    rm -rf "/tmp/phpredis-${PHPREDIS_VERSION}" /tmp/phpredis.tar.gz; \
+    apk del .phpredis-build-deps; \
+    php -m | grep -qx redis
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
@@ -60,9 +78,24 @@ ENV APP_ENV=local
 
 COPY docker/php/php.dev.ini /usr/local/etc/php/conf.d/99-dev.ini
 
-# pcov rather than Xdebug: it measures coverage at a fraction of the cost and
-# is disabled unless the test run asks for it.
-RUN install-php-extensions pcov
+# pcov rather than Xdebug: it measures coverage at a fraction of the cost.
+# Built from source for the same reason as phpredis above: PECL no longer
+# serves it.
+ARG PCOV_VERSION=v1.0.12
+RUN set -eux; \
+    apk add --no-cache --virtual .pcov-build-deps $PHPIZE_DEPS; \
+    wget -qO /tmp/pcov.tar.gz "https://github.com/krakjoe/pcov/archive/refs/tags/${PCOV_VERSION}.tar.gz"; \
+    tar xzf /tmp/pcov.tar.gz -C /tmp; \
+    cd "/tmp/pcov-${PCOV_VERSION#v}"; \
+    phpize; \
+    ./configure --enable-pcov; \
+    make -j"$(nproc)"; \
+    make install; \
+    docker-php-ext-enable pcov; \
+    cd /; \
+    rm -rf "/tmp/pcov-${PCOV_VERSION#v}" /tmp/pcov.tar.gz; \
+    apk del .pcov-build-deps; \
+    php -m | grep -qx pcov
 
 USER www
 
